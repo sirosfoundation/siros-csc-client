@@ -2,7 +2,13 @@
 
 CRATE_NAME := csc_client
 LIB_NAME   := lib$(CRATE_NAME)
-VERSION    := $(shell cargo metadata --no-deps --format-version 1 | python3 -c "import sys,json; print(json.load(sys.stdin)['packages'][0]['version'])")
+UNAME_S    := $(shell uname -s)
+ifeq ($(UNAME_S),Darwin)
+  HOST_LIB_EXT := dylib
+else
+  HOST_LIB_EXT :=.
+endif
+VERSION    := $(shell cargo metadata --no-deps --format-version 1 | python3 -c "import sys,.n; print(.n.load(sys.stdin)['packages'][0]['version'])")
 
 BUILD_DIR      := target
 BINDINGS_DIR   := bindings
@@ -20,19 +26,19 @@ all: bindings
 
 bindings: bindings-swift bindings-kotlin
 
-bindings-swift: $(BUILD_DIR)/debug/$(LIB_NAME).so
+bindings-swift: $(BUILD_DIR)/debug/$(LIB_NAME).$(HOST_LIB_EXT)
 	@mkdir -p $(SWIFT_DIR)
-	cargo run --bin uniffi-bindgen -- generate \
-		--library $(BUILD_DIR)/debug/$(LIB_NAME).so \
+	cargo run --features bindgen --bin uniffi-bindgen -- generate \
+		--library $(BUILD_DIR)/debug/$(LIB_NAME).$(HOST_LIB_EXT) \
 		--language swift --out-dir $(SWIFT_DIR)
 
-bindings-kotlin: $(BUILD_DIR)/debug/$(LIB_NAME).so
+bindings-kotlin: $(BUILD_DIR)/debug/$(LIB_NAME).$(HOST_LIB_EXT)
 	@mkdir -p $(KOTLIN_DIR)
-	cargo run --bin uniffi-bindgen -- generate \
-		--library $(BUILD_DIR)/debug/$(LIB_NAME).so \
+	cargo run --features bindgen --bin uniffi-bindgen -- generate \
+		--library $(BUILD_DIR)/debug/$(LIB_NAME).$(HOST_LIB_EXT) \
 		--language kotlin --out-dir $(KOTLIN_DIR)
 
-$(BUILD_DIR)/debug/$(LIB_NAME).so:
+$(BUILD_DIR)/debug/$(LIB_NAME).$(HOST_LIB_EXT):
 	cargo build
 
 ios: $(foreach t,$(IOS_TARGETS) $(IOS_SIM_TARGETS),ios-$(t))
@@ -59,9 +65,9 @@ android-%:
 AAR_DIR := $(BUILD_DIR)/aar
 aar: android bindings-kotlin
 	@mkdir -p $(AAR_DIR)/jni/arm64-v8a $(AAR_DIR)/jni/armeabi-v7a $(AAR_DIR)/jni/x86_64
-	cp $(BUILD_DIR)/aarch64-linux-android/release/$(LIB_NAME).so $(AAR_DIR)/jni/arm64-v8a/
-	cp $(BUILD_DIR)/armv7-linux-androideabi/release/$(LIB_NAME).so $(AAR_DIR)/jni/armeabi-v7a/
-	cp $(BUILD_DIR)/x86_64-linux-android/release/$(LIB_NAME).so $(AAR_DIR)/jni/x86_64/
+	cp $(BUILD_DIR)/aarch64-linux-android/release/$(LIB_NAME). $(AAR_DIR)/jni/arm64-v8a/
+	cp $(BUILD_DIR)/armv7-linux-androideabi/release/$(LIB_NAME). $(AAR_DIR)/jni/armeabi-v7a/
+	cp $(BUILD_DIR)/x86_64-linux-android/release/$(LIB_NAME). $(AAR_DIR)/jni/x86_64/
 	@echo '<?xml version="1.0" encoding="utf-8"?><manifest xmlns:android="http://schemas.android.com/apk/res/android" package="org.sirosfoundation.csc"/>' \
 		> $(AAR_DIR)/AndroidManifest.xml
 	cd $(AAR_DIR) && zip -r ../$(CRATE_NAME)-$(VERSION).aar .

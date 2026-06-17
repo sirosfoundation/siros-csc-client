@@ -141,15 +141,14 @@ pub struct FfiCscClient {
 #[uniffi::export]
 impl FfiCscClient {
     #[uniffi::constructor]
-    pub fn new(base_url: String, dpop_signer: Box<dyn FfiDPopSigner>) -> Self {
+    pub fn new(base_url: String, dpop_signer: Box<dyn FfiDPopSigner>) -> Result<Self, FfiCscError> {
         let rt = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
-            .expect("failed to create tokio runtime");
-        FfiCscClient {
-            inner: CscClient::new(base_url, DPopSignerBridge(dpop_signer)),
-            rt,
-        }
+            .map_err(|e| FfiCscError::Http { message: format!("failed to create tokio runtime: {e}") })?;
+        let inner = CscClient::new(base_url, DPopSignerBridge(dpop_signer))
+            .map_err(|e| FfiCscError::Http { message: e.to_string() })?;
+        Ok(FfiCscClient { inner, rt })
     }
 
     /// List available signing credential IDs.

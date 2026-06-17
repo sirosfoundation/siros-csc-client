@@ -5,7 +5,7 @@ use wiremock::matchers::{body_json, header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 fn test_client(server: &MockServer) -> CscClient {
-    CscClient::new_insecure(&server.uri(), NoDPop)
+    CscClient::new_insecure(&server.uri(), NoDPop).unwrap()
 }
 
 #[tokio::test]
@@ -36,6 +36,9 @@ async fn list_credentials_with_status_filter() {
 
     Mock::given(method("POST"))
         .and(path("/credentials/list"))
+        .and(body_json(serde_json::json!({
+            "credentialStatus": "enabled"
+        })))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "credentialIDs": ["cred-001"]
         })))
@@ -192,7 +195,8 @@ async fn dpop_signer_is_called() {
         TestDPopSigner {
             called: called_clone,
         },
-    );
+    )
+    .unwrap();
     let creds = client
         .list_credentials("Bearer test-token", None)
         .await

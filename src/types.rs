@@ -41,6 +41,7 @@ impl DPopSigner for NoDPop {
 
 /// Request body for `POST /csc/v2/credentials/list`.
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CredentialsListRequest {
     /// Filter by credential status. If omitted, returns all.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -52,10 +53,10 @@ pub struct CredentialsListRequest {
 
 /// Response body for `POST /csc/v2/credentials/list`.
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct CredentialsListResponse {
     /// List of credential IDs.
-    pub credential_i_ds: Vec<String>,
+    #[serde(rename = "credentialIDs")]
+    pub credential_ids: Vec<String>,
 }
 
 /// Request body for `POST /csc/v2/credentials/info`.

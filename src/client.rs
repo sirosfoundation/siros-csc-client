@@ -28,25 +28,26 @@ impl CscClient {
     /// - `base_url`: CSC API base URL (e.g. `https://qtsp.example.com/csc/v2`)
     /// - `dpop_signer`: implementation producing DPoP proof JWTs. Use [`NoDPop`]
     ///   if the QTSP doesn't require DPoP.
-    pub fn new(base_url: impl Into<String>, dpop_signer: impl DPopSigner + 'static) -> Self {
-        Self {
+    pub fn new(base_url: impl Into<String>, dpop_signer: impl DPopSigner + 'static) -> Result<Self> {
+        let http = Client::builder()
+            .https_only(true)
+            .build()
+            .map_err(|e| CscError::Http(e.to_string()))?;
+        Ok(Self {
             base_url: base_url.into().trim_end_matches('/').to_string(),
-            http: Client::builder()
-                .https_only(true)
-                .build()
-                .expect("failed to create HTTP client"),
+            http,
             dpop_signer: Box::new(dpop_signer),
-        }
+        })
     }
 
     /// Create a CSC client that also works over HTTP (for testing only).
     #[cfg(any(test, feature = "test-utils"))]
-    pub fn new_insecure(base_url: impl Into<String>, dpop_signer: impl DPopSigner + 'static) -> Self {
-        Self {
+    pub fn new_insecure(base_url: impl Into<String>, dpop_signer: impl DPopSigner + 'static) -> Result<Self> {
+        Ok(Self {
             base_url: base_url.into().trim_end_matches('/').to_string(),
             http: Client::new(),
             dpop_signer: Box::new(dpop_signer),
-        }
+        })
     }
 
     /// List available signing credentials.
@@ -77,7 +78,7 @@ impl CscClient {
             .await
             .map_err(|e| CscError::InvalidResponse(e.to_string()))?;
 
-        Ok(result.credential_i_ds)
+        Ok(result.credential_ids)
     }
 
     /// Get detailed information about a credential.
