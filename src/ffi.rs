@@ -94,6 +94,10 @@ impl From<&FfiSignHashRequest> for SignHashRequest {
             hash_algo: r.hash_algo.clone(),
             sign_algo: r.sign_algo.clone(),
             sign_algo_params: None,
+            operation_mode: None,
+            validity_period: None,
+            response_uri: None,
+            client_data: None,
         }
     }
 }

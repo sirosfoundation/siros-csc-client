@@ -62,6 +62,10 @@ async fn sign_hash_request_credential_id_field_name() {
         hash_algo: HASH_ALGO_SHA256.to_string(),
         sign_algo: SIGN_ALGO_ECDSA_SHA256.to_string(),
         sign_algo_params: None,
+        operation_mode: None,
+        validity_period: None,
+        response_uri: None,
+        client_data: None,
     };
 
     let result = client.sign_hash("Bearer tok", &req).await;
@@ -96,6 +100,10 @@ async fn sign_hash_request_sad_field_name() {
         hash_algo: HASH_ALGO_SHA256.to_string(),
         sign_algo: SIGN_ALGO_ECDSA_SHA256.to_string(),
         sign_algo_params: None,
+        operation_mode: None,
+        validity_period: None,
+        response_uri: None,
+        client_data: None,
     };
 
     let result = client.sign_hash("Bearer tok", &req).await;
@@ -126,6 +134,10 @@ async fn sign_hash_request_hashes_field_name() {
         hash_algo: HASH_ALGO_SHA256.to_string(),
         sign_algo: SIGN_ALGO_ECDSA_SHA256.to_string(),
         sign_algo_params: None,
+        operation_mode: None,
+        validity_period: None,
+        response_uri: None,
+        client_data: None,
     };
 
     let result = client.sign_hash("Bearer tok", &req).await;
@@ -156,6 +168,10 @@ async fn sign_hash_request_hash_algorithm_oid_field_name() {
         hash_algo: HASH_ALGO_SHA256.to_string(),
         sign_algo: SIGN_ALGO_ECDSA_SHA256.to_string(),
         sign_algo_params: None,
+        operation_mode: None,
+        validity_period: None,
+        response_uri: None,
+        client_data: None,
     };
 
     let result = client.sign_hash("Bearer tok", &req).await;
@@ -420,6 +436,10 @@ async fn server_error_with_csc_body() {
         hash_algo: HASH_ALGO_SHA256.to_string(),
         sign_algo: SIGN_ALGO_ECDSA_SHA256.to_string(),
         sign_algo_params: None,
+        operation_mode: None,
+        validity_period: None,
+        response_uri: None,
+        client_data: None,
     };
 
     let err = client.sign_hash("Bearer tok", &req).await.unwrap_err();
@@ -750,6 +770,10 @@ async fn sign_hash_single_document() {
         hash_algo: HASH_ALGO_SHA256.to_string(),
         sign_algo: SIGN_ALGO_ECDSA_SHA256.to_string(),
         sign_algo_params: None,
+        operation_mode: None,
+        validity_period: None,
+        response_uri: None,
+        client_data: None,
     };
 
     let sigs = client.sign_hash("Bearer tok", &req).await.unwrap();
@@ -791,6 +815,10 @@ async fn sign_hash_implicit_auth_no_sad() {
         hash_algo: HASH_ALGO_SHA256.to_string(),
         sign_algo: SIGN_ALGO_ECDSA_SHA256.to_string(),
         sign_algo_params: None,
+        operation_mode: None,
+        validity_period: None,
+        response_uri: None,
+        client_data: None,
     };
 
     let result = client.sign_hash("Bearer tok", &req).await;
@@ -824,6 +852,10 @@ async fn sign_hash_response_with_response_id() {
         hash_algo: HASH_ALGO_SHA256.to_string(),
         sign_algo: SIGN_ALGO_ECDSA_SHA256.to_string(),
         sign_algo_params: None,
+        operation_mode: None,
+        validity_period: None,
+        response_uri: None,
+        client_data: None,
     };
 
     // Should still succeed even with extra responseID field
@@ -979,6 +1011,10 @@ async fn sign_hash_empty_signatures() {
         hash_algo: HASH_ALGO_SHA256.to_string(),
         sign_algo: SIGN_ALGO_ECDSA_SHA256.to_string(),
         sign_algo_params: None,
+        operation_mode: None,
+        validity_period: None,
+        response_uri: None,
+        client_data: None,
     };
 
     let sigs = client.sign_hash("Bearer tok", &req).await.unwrap();
@@ -1013,6 +1049,10 @@ async fn sign_hash_authorization_required_error() {
         hash_algo: HASH_ALGO_SHA256.to_string(),
         sign_algo: SIGN_ALGO_ECDSA_SHA256.to_string(),
         sign_algo_params: None,
+        operation_mode: None,
+        validity_period: None,
+        response_uri: None,
+        client_data: None,
     };
 
     let err = client

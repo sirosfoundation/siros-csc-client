@@ -147,6 +147,9 @@ pub struct CredentialsListRequest {
     /// Maximum number of credentials to return.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_results: Option<u32>,
+    /// Pagination token from a previous response.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub page_token: Option<String>,
 }
 
 /// Response body for `POST /csc/v2/credentials/list`.
@@ -155,6 +158,9 @@ pub struct CredentialsListResponse {
     /// List of credential IDs.
     #[serde(rename = "credentialIDs")]
     pub credential_ids: Vec<String>,
+    /// Token for fetching the next page (if more results exist).
+    #[serde(default, rename = "nextPageToken")]
+    pub next_page_token: Option<String>,
 }
 
 /// Request body for `POST /csc/v2/credentials/info`.
@@ -287,13 +293,80 @@ pub struct SignHashRequest {
     /// Signature format (e.g. `"P"` for PKCS#1).
     #[serde(rename = "signAlgoParams", skip_serializing_if = "Option::is_none")]
     pub sign_algo_params: Option<String>,
+    /// Operation mode: `"S"` (synchronous, default) or `"A"` (asynchronous).
+    #[serde(rename = "operationMode", skip_serializing_if = "Option::is_none")]
+    pub operation_mode: Option<String>,
+    /// Validity period in milliseconds for async mode.
+    #[serde(rename = "validity_period", skip_serializing_if = "Option::is_none")]
+    pub validity_period: Option<u64>,
+    /// URI for async callback notification.
+    #[serde(rename = "response_uri", skip_serializing_if = "Option::is_none")]
+    pub response_uri: Option<String>,
+    /// Opaque client data returned unchanged in the response.
+    #[serde(rename = "clientData", skip_serializing_if = "Option::is_none")]
+    pub client_data: Option<String>,
 }
 
 /// Response body for `POST /csc/v2/signatures/signHash`.
 #[derive(Debug, Deserialize)]
 pub struct SignHashResponse {
     /// Base64-encoded signatures (one per input hash).
+    /// Empty in async mode until the operation completes.
+    #[serde(default)]
     pub signatures: Vec<String>,
+    /// Response ID for async operations (poll with this).
+    #[serde(default, rename = "responseID")]
+    pub response_id: Option<String>,
+}
+
+// ─── Credential authorization types ─────────────────────────────────────────
+
+/// Request body for `POST /csc/v2/credentials/authorize`.
+#[derive(Debug, Serialize)]
+pub struct CredentialAuthorizeRequest {
+    /// Credential ID to authorize.
+    #[serde(rename = "credentialID")]
+    pub credential_id: String,
+    /// Number of signatures to authorize.
+    #[serde(rename = "numSignatures")]
+    pub num_signatures: u32,
+    /// Base64-encoded hashes that will be signed (for binding).
+    #[serde(rename = "hashes", skip_serializing_if = "Option::is_none")]
+    pub hashes: Option<Vec<String>>,
+    /// Hash algorithm OID for the hashes.
+    #[serde(rename = "hashAlgorithmOID", skip_serializing_if = "Option::is_none")]
+    pub hash_algorithm_oid: Option<String>,
+    /// PIN value (for PIN-based authorization).
+    #[serde(rename = "PIN", skip_serializing_if = "Option::is_none")]
+    pub pin: Option<String>,
+    /// OTP value (for OTP-based authorization).
+    #[serde(rename = "OTP", skip_serializing_if = "Option::is_none")]
+    pub otp: Option<String>,
+    /// Opaque client data returned unchanged in the response.
+    #[serde(rename = "clientData", skip_serializing_if = "Option::is_none")]
+    pub client_data: Option<String>,
+}
+
+/// Response body for `POST /csc/v2/credentials/authorize`.
+#[derive(Debug, Deserialize)]
+pub struct CredentialAuthorizeResponse {
+    /// Signature Activation Data to use in signHash.
+    #[serde(rename = "SAD")]
+    pub sad: String,
+    /// Expiration time of the SAD (ISO 8601 or seconds).
+    #[serde(default, rename = "expiresIn")]
+    pub expires_in: Option<u64>,
+}
+
+/// Request body for `POST /csc/v2/credentials/sendOTP`.
+#[derive(Debug, Serialize)]
+pub struct SendOtpRequest {
+    /// Credential ID to send OTP for.
+    #[serde(rename = "credentialID")]
+    pub credential_id: String,
+    /// Opaque client data returned unchanged in the response.
+    #[serde(rename = "clientData", skip_serializing_if = "Option::is_none")]
+    pub client_data: Option<String>,
 }
 
 // ─── CSC API error response ─────────────────────────────────────────────────

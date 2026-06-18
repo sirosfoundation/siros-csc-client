@@ -237,6 +237,10 @@ async fn live_sign_hash_rejects_invalid_token() {
         hash_algo: csc_client::HASH_ALGO_SHA256.to_string(),
         sign_algo: csc_client::SIGN_ALGO_ECDSA_SHA256.to_string(),
         sign_algo_params: None,
+        operation_mode: None,
+        validity_period: None,
+        response_uri: None,
+        client_data: None,
     };
 
     let err = client

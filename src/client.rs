@@ -88,6 +88,8 @@ impl CscClient {
     ///
     /// - `access_token`: Bearer token (e.g. `"Bearer eyJ..."`)
     /// - `filter_status`: optional status filter (e.g. `"enabled"`)
+    ///
+    /// Note: for paginated listing, use [`list_credentials_paginated`].
     pub async fn list_credentials(
         &self,
         access_token: &str,
@@ -97,6 +99,7 @@ impl CscClient {
         let body = CredentialsListRequest {
             credential_status: filter_status.map(|s| s.to_string()),
             max_results: None,
+            page_token: None,
         };
 
         let resp = self.post_json(&url, access_token, &body).await?;
@@ -111,6 +114,35 @@ impl CscClient {
             .map_err(|e| CscError::InvalidResponse(e.to_string()))?;
 
         Ok(result.credential_ids)
+    }
+
+    /// List credentials with pagination support.
+    ///
+    /// Returns the raw response including `next_page_token` for fetching
+    /// subsequent pages.
+    pub async fn list_credentials_paginated(
+        &self,
+        access_token: &str,
+        filter_status: Option<&str>,
+        max_results: Option<u32>,
+        page_token: Option<&str>,
+    ) -> Result<CredentialsListResponse> {
+        let url = format!("{}/credentials/list", self.base_url);
+        let body = CredentialsListRequest {
+            credential_status: filter_status.map(|s| s.to_string()),
+            max_results,
+            page_token: page_token.map(|s| s.to_string()),
+        };
+
+        let resp = self.post_json(&url, access_token, &body).await?;
+
+        if !resp.status().is_success() {
+            return Err(self.parse_error(resp).await);
+        }
+
+        resp.json()
+            .await
+            .map_err(|e| CscError::InvalidResponse(e.to_string()))
     }
 
     /// Get detailed information about a credential.
@@ -167,6 +199,73 @@ impl CscClient {
             .map_err(|e| CscError::InvalidResponse(e.to_string()))?;
 
         Ok(result.signatures)
+    }
+
+    /// Sign hashes with full response (includes async operation fields).
+    ///
+    /// Use this when `operation_mode` is set to `"A"` (asynchronous) to get
+    /// access to the `response_id` for polling.
+    pub async fn sign_hash_full(
+        &self,
+        access_token: &str,
+        request: &SignHashRequest,
+    ) -> Result<SignHashResponse> {
+        let url = format!("{}/signatures/signHash", self.base_url);
+
+        let resp = self.post_json(&url, access_token, request).await?;
+
+        if !resp.status().is_success() {
+            return Err(self.parse_error(resp).await);
+        }
+
+        resp.json()
+            .await
+            .map_err(|e| CscError::InvalidResponse(e.to_string()))
+    }
+
+    /// Authorize a credential for signing (explicit authorization mode).
+    ///
+    /// This is required when the credential's `auth.mode` is `"explicit"`.
+    /// Returns a SAD (Signature Activation Data) token to pass to `sign_hash`.
+    ///
+    /// - `access_token`: Bearer token
+    /// - `request`: authorization parameters (credential ID, PIN/OTP, hashes)
+    pub async fn authorize_credential(
+        &self,
+        access_token: &str,
+        request: &CredentialAuthorizeRequest,
+    ) -> Result<CredentialAuthorizeResponse> {
+        let url = format!("{}/credentials/authorize", self.base_url);
+
+        let resp = self.post_json(&url, access_token, request).await?;
+
+        if !resp.status().is_success() {
+            return Err(self.parse_error(resp).await);
+        }
+
+        resp.json()
+            .await
+            .map_err(|e| CscError::InvalidResponse(e.to_string()))
+    }
+
+    /// Trigger OTP delivery for credential authorization.
+    ///
+    /// Call this before `authorize_credential` when the credential requires
+    /// OTP-based authorization. The QTSP will send an OTP to the user via
+    /// the configured channel (SMS, email, etc.).
+    ///
+    /// - `access_token`: Bearer token
+    /// - `request`: sendOTP parameters (credential ID)
+    pub async fn send_otp(&self, access_token: &str, request: &SendOtpRequest) -> Result<()> {
+        let url = format!("{}/credentials/sendOTP", self.base_url);
+
+        let resp = self.post_json(&url, access_token, request).await?;
+
+        if !resp.status().is_success() {
+            return Err(self.parse_error(resp).await);
+        }
+
+        Ok(())
     }
 
     // ─── Internal helpers ───────────────────────────────────────────────
