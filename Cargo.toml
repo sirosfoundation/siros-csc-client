@@ -31,6 +31,9 @@ bindgen = ["ffi", "uniffi/cli"]
 test-utils = []
 
 [dev-dependencies]
+base64 = "0.22"
+dotenvy = "0.15"
+sha2 = "0.10"
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 wiremock = "0.6"
 siros-csc-client = { path = ".", features = ["test-utils"] }
