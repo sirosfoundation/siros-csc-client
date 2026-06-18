@@ -56,6 +56,31 @@ impl CscClient {
         })
     }
 
+    /// Query service information (no authentication required).
+    ///
+    /// Returns metadata about the QTSP including supported algorithms,
+    /// OAuth2 configuration, and available methods.
+    pub async fn info(&self) -> Result<InfoResponse> {
+        let url = format!("{}/info", self.base_url);
+
+        let resp = self
+            .http
+            .post(&url)
+            .header(CONTENT_TYPE, "application/json")
+            .json(&serde_json::json!({}))
+            .send()
+            .await
+            .map_err(|e| CscError::Http(e.to_string()))?;
+
+        if !resp.status().is_success() {
+            return Err(self.parse_error(resp).await);
+        }
+
+        resp.json()
+            .await
+            .map_err(|e| CscError::InvalidResponse(e.to_string()))
+    }
+
     /// List available signing credentials.
     ///
     /// - `access_token`: Bearer token (e.g. `"Bearer eyJ..."`)

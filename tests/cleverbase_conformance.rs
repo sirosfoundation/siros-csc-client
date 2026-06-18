@@ -196,17 +196,9 @@ async fn credential_info_request_credential_id_field_name() {
 // ═══════════════════════════════════════════════════════════════════════════════
 // /info endpoint (CSC v2.2 §8.2.1 — service discovery)
 // ═══════════════════════════════════════════════════════════════════════════════
-//
-// The Cleverbase spec defines POST /csc/v2/info returning InfoResponse with:
-//   specs, name, logo, region, lang, description, signAlgorithms, signature_formats
-//   (required) plus optional oauth2Servers, authType, methods, etc.
-//
-// This endpoint is NOT yet implemented in the client. Tests are marked #[ignore]
-// to document the expected behavior for when it's added.
 
 /// Service info returns QTSP metadata including supported algorithms.
 #[tokio::test]
-#[ignore = "info endpoint not yet implemented in CscClient"]
 async fn info_returns_service_metadata() {
     let server = MockServer::start().await;
 
@@ -246,18 +238,17 @@ async fn info_returns_service_metadata() {
         .mount(&server)
         .await;
 
-    // When implemented:
-    // let client = test_client(&server);
-    // let info = client.info().await.unwrap();
-    // assert_eq!(info.specs, "2.2.0.0");
-    // assert_eq!(info.name, "Cleverbase Signing");
-    // assert!(info.supports_rar.unwrap_or(false));
-    // assert!(info.methods.unwrap().contains(&"signatures/signHash".to_string()));
+    let client = test_client(&server);
+    let info = client.info().await.unwrap();
+    assert_eq!(info.specs, "2.2.0.0");
+    assert_eq!(info.name, "Cleverbase Signing");
+    assert!(info.supports_rar);
+    assert!(info.methods.contains(&"signatures/signHash".to_string()));
+    assert_eq!(info.sign_algorithms.algos.len(), 2);
 }
 
 /// Service info does NOT require authentication (per CSC v2.2 spec).
 #[tokio::test]
-#[ignore = "info endpoint not yet implemented in CscClient"]
 async fn info_no_auth_required() {
     let server = MockServer::start().await;
 
@@ -277,10 +268,68 @@ async fn info_no_auth_required() {
         .mount(&server)
         .await;
 
-    // When implemented, info() should NOT send Authorization header
-    // let client = test_client(&server);
-    // let info = client.info().await.unwrap();
-    // assert_eq!(info.specs, "2.2.0.0");
+    let client = test_client(&server);
+    let info = client.info().await.unwrap();
+    assert_eq!(info.specs, "2.2.0.0");
+}
+
+/// Info response with null fields (matching actual Cleverbase testbed output).
+#[tokio::test]
+async fn info_handles_null_fields() {
+    let server = MockServer::start().await;
+
+    // Exact response from the live Cleverbase testbed (has nulls)
+    Mock::given(method("POST"))
+        .and(path("/info"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "specs": "2.2.0.0",
+            "name": "Cleverbase CSC V2 Testbed",
+            "logo": "https://cleverbase.com/images/product-card.svg",
+            "region": "NL",
+            "lang": "en",
+            "description": "CSC V2 test service",
+            "authType": ["oauth2code"],
+            "oauth2Servers": [{
+                "label": null,
+                "baseUri": "https://signing.lab.cleverbase.io/idp",
+                "issuerIdentifier": null,
+                "authType": ["oauth2code"],
+                "supportsRar": false
+            }],
+            "oauth2": "https://signing.lab.cleverbase.io/idp",
+            "oauth2Issuer": null,
+            "supportsRar": false,
+            "supportedHashTypes": ["2.16.840.1.101.3.4.2.1"],
+            "asynchronousOperationMode": false,
+            "methods": ["oauth2/authorize", "oauth2/pushed_authorize",
+                        "credentials/list", "credentials/info", "signatures/signHash"],
+            "validationInfo": false,
+            "signAlgorithms": {"algos": ["1.2.840.10045.4.3.2"], "algoParams": null},
+            "documentTypes": null,
+            "signature_formats": {"formats": [], "envelope_properties": null, "allowMix": null},
+            "conformance_levels": []
+        })))
+        .mount(&server)
+        .await;
+
+    let client = test_client(&server);
+    let info = client.info().await.unwrap();
+    assert_eq!(info.name, "Cleverbase CSC V2 Testbed");
+    assert_eq!(info.region, "NL");
+    assert!(!info.supports_rar);
+    assert_eq!(
+        info.oauth2,
+        Some("https://signing.lab.cleverbase.io/idp".to_string())
+    );
+    assert_eq!(info.oauth2_issuer, None);
+    assert_eq!(info.supported_hash_types, vec!["2.16.840.1.101.3.4.2.1"]);
+    assert!(!info.asynchronous_operation_mode);
+    // OAuth2 server with null label should parse fine
+    assert_eq!(info.oauth2_servers[0].label, None);
+    assert_eq!(
+        info.oauth2_servers[0].base_uri,
+        Some("https://signing.lab.cleverbase.io/idp".to_string())
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

@@ -39,6 +39,104 @@ impl DPopSigner for NoDPop {
 
 // ─── CSC API request/response types ─────────────────────────────────────────
 
+/// Response body for `POST /csc/v2/info`.
+#[derive(Debug, Deserialize)]
+pub struct InfoResponse {
+    /// CSC API specification version (e.g. `"2.2.0.0"`).
+    pub specs: String,
+    /// Service name.
+    pub name: String,
+    /// Logo URL.
+    pub logo: String,
+    /// Service region (ISO 3166-1 alpha-2).
+    pub region: String,
+    /// Language (ISO 639-1).
+    pub lang: String,
+    /// Human-readable description.
+    pub description: String,
+    /// Supported authentication types.
+    #[serde(default, rename = "authType")]
+    pub auth_type: Vec<String>,
+    /// OAuth2 server configurations.
+    #[serde(default, rename = "oauth2Servers")]
+    pub oauth2_servers: Vec<OAuth2ServerInfo>,
+    /// OAuth2 base URI (legacy field).
+    #[serde(default)]
+    pub oauth2: Option<String>,
+    /// OAuth2 issuer identifier.
+    #[serde(default, rename = "oauth2Issuer")]
+    pub oauth2_issuer: Option<String>,
+    /// Whether Rich Authorization Requests (RFC 9396) are supported.
+    #[serde(default, rename = "supportsRar")]
+    pub supports_rar: bool,
+    /// Supported hash algorithm OIDs.
+    #[serde(default, rename = "supportedHashTypes")]
+    pub supported_hash_types: Vec<String>,
+    /// Whether asynchronous operation mode is supported.
+    #[serde(default, rename = "asynchronousOperationMode")]
+    pub asynchronous_operation_mode: bool,
+    /// Supported API methods.
+    #[serde(default)]
+    pub methods: Vec<String>,
+    /// Whether validation info is available.
+    #[serde(default, rename = "validationInfo")]
+    pub validation_info: bool,
+    /// Supported signature algorithms.
+    #[serde(rename = "signAlgorithms")]
+    pub sign_algorithms: SignAlgorithmsInfo,
+    /// Supported signature formats.
+    #[serde(default)]
+    pub signature_formats: Option<SignatureFormatsInfo>,
+    /// Conformance levels.
+    #[serde(default)]
+    pub conformance_levels: Vec<String>,
+}
+
+/// OAuth2 server information from the /info response.
+#[derive(Debug, Deserialize)]
+pub struct OAuth2ServerInfo {
+    /// Server label.
+    #[serde(default)]
+    pub label: Option<String>,
+    /// Base URI of the OAuth2 server.
+    #[serde(default, rename = "baseUri")]
+    pub base_uri: Option<String>,
+    /// Issuer identifier.
+    #[serde(default, rename = "issuerIdentifier")]
+    pub issuer_identifier: Option<String>,
+    /// Supported auth types.
+    #[serde(default, rename = "authType")]
+    pub auth_type: Vec<String>,
+    /// Whether RAR is supported.
+    #[serde(default, rename = "supportsRar")]
+    pub supports_rar: bool,
+}
+
+/// Supported signature algorithms from the /info response.
+#[derive(Debug, Deserialize)]
+pub struct SignAlgorithmsInfo {
+    /// Algorithm OIDs.
+    #[serde(default)]
+    pub algos: Vec<String>,
+    /// Algorithm parameters.
+    #[serde(default, rename = "algoParams")]
+    pub algo_params: Option<Vec<String>>,
+}
+
+/// Supported signature formats from the /info response.
+#[derive(Debug, Deserialize)]
+pub struct SignatureFormatsInfo {
+    /// Format identifiers.
+    #[serde(default)]
+    pub formats: Vec<String>,
+    /// Envelope properties.
+    #[serde(default)]
+    pub envelope_properties: Option<Vec<Vec<String>>>,
+    /// Whether mixed formats are allowed.
+    #[serde(default, rename = "allowMix")]
+    pub allow_mix: Option<bool>,
+}
+
 /// Request body for `POST /csc/v2/credentials/list`.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -80,15 +178,24 @@ pub struct CredentialInfoRequest {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CredentialInfoResponse {
+    /// The credential ID (returned by the server).
+    #[serde(default, rename = "credentialID")]
+    pub credential_id: String,
     /// Human-readable description.
     #[serde(default)]
     pub description: String,
+    /// Signature qualifier (e.g. `"eu_eidas_qes"`).
+    #[serde(default)]
+    pub signature_qualifier: Option<String>,
     /// Key information.
     pub key: KeyInfo,
     /// Certificate information (if requested).
     pub cert: Option<CertInfo>,
     /// Authorization mode.
     pub auth: Option<AuthInfo>,
+    /// SCAL level.
+    #[serde(default, rename = "SCAL")]
+    pub scal: Option<String>,
     /// Whether multi-sign is supported.
     #[serde(default)]
     pub multisign: u32,
@@ -98,6 +205,9 @@ pub struct CredentialInfoResponse {
     /// Supported signature algorithms.
     #[serde(default)]
     pub algo: Vec<String>,
+    /// Language.
+    #[serde(default)]
+    pub lang: Option<String>,
 }
 
 /// Key metadata within a credential.
@@ -151,6 +261,9 @@ pub struct AuthInfo {
     /// Expression combining auth factors (e.g. `"PIN AND OTP"`).
     #[serde(default)]
     pub expression: Option<String>,
+    /// Objects/methods used for authorization.
+    #[serde(default)]
+    pub objects: Vec<String>,
 }
 
 /// Request body for `POST /csc/v2/signatures/signHash`.
