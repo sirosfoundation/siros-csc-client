@@ -1,8 +1,8 @@
-//! CSC API v2.2 client for Qualified Electronic Signatures (QES).
+//! CSC API client for Qualified Electronic Signatures (QES).
 //!
 //! This crate provides a typed HTTP client for the CSC API (ETSI TS 119 432),
-//! enabling wallet applications to request qualified electronic signatures from
-//! remote QTSPs (Qualified Trust Service Providers).
+//! supporting both **v1** and **v2.2**, enabling wallet applications to request
+//! qualified electronic signatures from remote QTSPs.
 //!
 //! # Architecture
 //!

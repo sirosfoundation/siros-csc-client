@@ -1,4 +1,4 @@
-//! CSC API v2.2 HTTP client.
+//! CSC API HTTP client (supports v1 and v2.2).
 
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
 use reqwest::Client;
@@ -11,19 +11,25 @@ use crate::types::*;
 /// # Usage
 ///
 /// ```ignore
+/// // CSC v2.2 (default)
 /// let client = CscClient::new("https://qtsp.example.com/csc/v2", dpop_signer);
-/// let creds = client.list_credentials("Bearer eyJ...", None).await?;
-/// let info = client.credential_info("Bearer eyJ...", &creds[0]).await?;
-/// let sigs = client.sign_hash("Bearer eyJ...", &req).await?;
+///
+/// // CSC v1
+/// let client = CscClient::with_version(
+///     "https://stub.example.com/csc/v1",
+///     dpop_signer,
+///     CscVersion::V1,
+/// );
 /// ```
 pub struct CscClient {
     base_url: String,
     http: Client,
     dpop_signer: Box<dyn DPopSigner>,
+    version: CscVersion,
 }
 
 impl CscClient {
-    /// Create a new CSC client.
+    /// Create a new CSC client (defaults to v2.2).
     ///
     /// - `base_url`: CSC API base URL (e.g. `https://qtsp.example.com/csc/v2`)
     /// - `dpop_signer`: implementation producing DPoP proof JWTs. Use [`NoDPop`]
@@ -31,6 +37,15 @@ impl CscClient {
     pub fn new(
         base_url: impl Into<String>,
         dpop_signer: impl DPopSigner + 'static,
+    ) -> Result<Self> {
+        Self::with_version(base_url, dpop_signer, CscVersion::V2)
+    }
+
+    /// Create a new CSC client with an explicit API version.
+    pub fn with_version(
+        base_url: impl Into<String>,
+        dpop_signer: impl DPopSigner + 'static,
+        version: CscVersion,
     ) -> Result<Self> {
         let http = Client::builder()
             .https_only(true)
@@ -43,19 +58,32 @@ impl CscClient {
             base_url: base_url.into().trim_end_matches('/').to_string(),
             http,
             dpop_signer: Box::new(dpop_signer),
+            version,
         })
     }
 
     /// Create a CSC client that also works over HTTP (for testing only).
+    /// Defaults to v2.2.
     #[cfg(any(test, feature = "test-utils"))]
     pub fn new_insecure(
         base_url: impl Into<String>,
         dpop_signer: impl DPopSigner + 'static,
     ) -> Result<Self> {
+        Self::new_insecure_versioned(base_url, dpop_signer, CscVersion::V2)
+    }
+
+    /// Create a CSC client for testing with an explicit API version.
+    #[cfg(any(test, feature = "test-utils"))]
+    pub fn new_insecure_versioned(
+        base_url: impl Into<String>,
+        dpop_signer: impl DPopSigner + 'static,
+        version: CscVersion,
+    ) -> Result<Self> {
         Ok(Self {
             base_url: base_url.into().trim_end_matches('/').to_string(),
             http: Client::new(),
             dpop_signer: Box::new(dpop_signer),
+            version,
         })
     }
 
@@ -186,8 +214,9 @@ impl CscClient {
         request: &SignHashRequest,
     ) -> Result<Vec<String>> {
         let url = format!("{}/signatures/signHash", self.base_url);
+        let body = self.sign_hash_body(request);
 
-        let resp = self.post_json(&url, access_token, request).await?;
+        let resp = self.post_json_value(&url, access_token, &body).await?;
 
         if !resp.status().is_success() {
             return Err(self.parse_error(resp).await);
@@ -211,8 +240,9 @@ impl CscClient {
         request: &SignHashRequest,
     ) -> Result<SignHashResponse> {
         let url = format!("{}/signatures/signHash", self.base_url);
+        let body = self.sign_hash_body(request);
 
-        let resp = self.post_json(&url, access_token, request).await?;
+        let resp = self.post_json_value(&url, access_token, &body).await?;
 
         if !resp.status().is_success() {
             return Err(self.parse_error(resp).await);
@@ -270,11 +300,53 @@ impl CscClient {
 
     // ─── Internal helpers ───────────────────────────────────────────────
 
+    /// Build the signHash request body, adapting field names for the API version.
+    ///
+    /// V1 uses `hash`/`hashAlgo`/`signAlgo`.
+    /// V2 uses `hashes`/`hashAlgorithmOID`/`signAlgo`.
+    fn sign_hash_body(&self, request: &SignHashRequest) -> serde_json::Value {
+        match self.version {
+            CscVersion::V1 => {
+                let mut body = serde_json::json!({
+                    "credentialID": request.credential_id,
+                    "hash": request.hash,
+                    "hashAlgo": request.hash_algo,
+                    "signAlgo": request.sign_algo,
+                });
+                let obj = body.as_object_mut().unwrap();
+                if let Some(ref sad) = request.sad {
+                    obj.insert("SAD".into(), serde_json::json!(sad));
+                }
+                if let Some(ref p) = request.sign_algo_params {
+                    obj.insert("signAlgoParams".into(), serde_json::json!(p));
+                }
+                if let Some(ref cd) = request.client_data {
+                    obj.insert("clientData".into(), serde_json::json!(cd));
+                }
+                body
+            }
+            CscVersion::V2 => {
+                serde_json::to_value(request).expect("SignHashRequest serialization cannot fail")
+            }
+        }
+    }
+
     async fn post_json<T: serde::Serialize>(
         &self,
         url: &str,
         access_token: &str,
         body: &T,
+    ) -> Result<reqwest::Response> {
+        let value = serde_json::to_value(body)
+            .map_err(|e| CscError::Http(format!("serialization error: {e}")))?;
+        self.post_json_value(url, access_token, &value).await
+    }
+
+    async fn post_json_value(
+        &self,
+        url: &str,
+        access_token: &str,
+        body: &serde_json::Value,
     ) -> Result<reqwest::Response> {
         let mut headers = HeaderMap::new();
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));

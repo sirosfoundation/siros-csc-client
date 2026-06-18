@@ -1,6 +1,22 @@
-//! CSC API v2.2 types (ETSI TS 119 432).
+//! CSC API types (ETSI TS 119 432).
+//!
+//! Supports both CSC v1 (ETSI TS 119 432 v1.x) and CSC v2.2.
 
 use serde::{Deserialize, Serialize};
+
+/// CSC API version selector.
+///
+/// Controls wire-format differences between CSC v1 and v2.2:
+/// - Field names in `signHash` requests (`hash`/`hashAlgo` vs `hashes`/`hashAlgorithmOID`)
+/// - Response parsing (v1 flat `authMode` vs v2 `auth` object)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum CscVersion {
+    /// CSC v1 (e.g. Cleverbase v1 signing stub).
+    V1,
+    /// CSC v2.2 (ETSI TS 119 432 v2.2.0.0).
+    #[default]
+    V2,
+}
 
 // ─── DPoP Signer trait ──────────────────────────────────────────────────────
 
@@ -180,7 +196,7 @@ pub struct CredentialInfoRequest {
     pub auth_info: Option<bool>,
 }
 
-/// Response body for `POST /csc/v2/credentials/info`.
+/// Response body for `POST /csc/v{1,2}/credentials/info`.
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CredentialInfoResponse {
@@ -197,8 +213,13 @@ pub struct CredentialInfoResponse {
     pub key: KeyInfo,
     /// Certificate information (if requested).
     pub cert: Option<CertInfo>,
-    /// Authorization mode.
+    /// Authorization mode (v2 object form).
+    #[serde(default)]
     pub auth: Option<AuthInfo>,
+    /// Authorization mode (v1 flat string form, e.g. `"oauth2code"`).
+    /// Prefer checking `auth` first; fall back to this for v1 servers.
+    #[serde(default, rename = "authMode")]
+    pub auth_mode: Option<String>,
     /// SCAL level.
     #[serde(default, rename = "SCAL")]
     pub scal: Option<String>,
@@ -214,6 +235,16 @@ pub struct CredentialInfoResponse {
     /// Language.
     #[serde(default)]
     pub lang: Option<String>,
+}
+
+impl CredentialInfoResponse {
+    /// Get the effective authorization mode, handling both v1 and v2 formats.
+    pub fn effective_auth_mode(&self) -> Option<&str> {
+        self.auth
+            .as_ref()
+            .map(|a| a.mode.as_str())
+            .or(self.auth_mode.as_deref())
+    }
 }
 
 /// Key metadata within a credential.
