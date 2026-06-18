@@ -237,6 +237,10 @@ async fn live_sign_hash_rejects_invalid_token() {
         hash_algo: csc_client::HASH_ALGO_SHA256.to_string(),
         sign_algo: csc_client::SIGN_ALGO_ECDSA_SHA256.to_string(),
         sign_algo_params: None,
+        operation_mode: None,
+        validity_period: None,
+        response_uri: None,
+        client_data: None,
     };
 
     let err = client
@@ -325,4 +329,247 @@ async fn live_credential_info_with_token() {
         !info.key.algo.is_empty(),
         "expected at least one key algorithm"
     );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Paginated credential listing
+// ═══════════════════════════════════════════════════════════════════════════════
+
+#[tokio::test]
+async fn live_list_credentials_paginated() {
+    if skip_unless_live() {
+        return;
+    }
+    let token = match access_token() {
+        Some(t) => t,
+        None => {
+            eprintln!("Skipping: set CSC_ACCESS_TOKEN for authenticated tests");
+            return;
+        }
+    };
+
+    let client = live_client();
+    let bearer = format!("Bearer {token}");
+
+    // Request with max_results=1 to exercise pagination path
+    let resp = client
+        .list_credentials_paginated(&bearer, None, Some(1), None)
+        .await
+        .expect("list_credentials_paginated failed");
+
+    assert!(
+        !resp.credential_ids.is_empty(),
+        "expected at least one credential"
+    );
+    // If there are more credentials than 1, we may get a next_page_token
+    eprintln!(
+        "Paginated: {} creds, next_page_token: {:?}",
+        resp.credential_ids.len(),
+        resp.next_page_token
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// credentials/authorize — error behavior
+// ═══════════════════════════════════════════════════════════════════════════════
+
+#[tokio::test]
+async fn live_authorize_credential_rejects_invalid_token() {
+    if skip_unless_live() {
+        return;
+    }
+
+    let client = live_client();
+    let req = csc_client::CredentialAuthorizeRequest {
+        credential_id: "nonexistent".to_string(),
+        num_signatures: 1,
+        hashes: None,
+        hash_algorithm_oid: None,
+        pin: None,
+        otp: None,
+        client_data: None,
+    };
+
+    let err = client
+        .authorize_credential("Bearer invalid-token-for-testing", &req)
+        .await
+        .unwrap_err();
+
+    match err {
+        csc_client::CscError::Api { status, .. } => {
+            assert!(
+                status == 401 || status == 500,
+                "expected 401 or 500, got {status}"
+            );
+        }
+        other => panic!("expected Api error, got: {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn live_authorize_credential_with_token() {
+    if skip_unless_live() {
+        return;
+    }
+    let token = match access_token() {
+        Some(t) => t,
+        None => {
+            eprintln!("Skipping: set CSC_ACCESS_TOKEN for authenticated tests");
+            return;
+        }
+    };
+
+    let client = live_client();
+    let bearer = format!("Bearer {token}");
+
+    // First get a credential ID
+    let creds = client
+        .list_credentials(&bearer, None)
+        .await
+        .expect("list_credentials failed");
+
+    if creds.is_empty() {
+        eprintln!("No credentials available to authorize");
+        return;
+    }
+
+    // Attempt to authorize — may fail with explicit auth required or succeed
+    // depending on the credential's auth mode
+    let req = csc_client::CredentialAuthorizeRequest {
+        credential_id: creds[0].clone(),
+        num_signatures: 1,
+        hashes: None,
+        hash_algorithm_oid: None,
+        pin: None,
+        otp: None,
+        client_data: None,
+    };
+
+    let result = client.authorize_credential(&bearer, &req).await;
+    // Either succeeds (implicit auth) or returns a structured error
+    match result {
+        Ok(resp) => {
+            assert!(!resp.sad.is_empty(), "SAD should not be empty on success");
+            eprintln!("Got SAD (expires_in: {:?})", resp.expires_in);
+        }
+        Err(csc_client::CscError::Api { status, error, .. }) => {
+            eprintln!("authorize returned error {status}: {error} (expected for oauth2code mode)");
+            // oauth2code credentials can't be authorized this way
+        }
+        Err(other) => panic!("unexpected error: {other:?}"),
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// credentials/sendOTP — error behavior
+// ═══════════════════════════════════════════════════════════════════════════════
+
+#[tokio::test]
+async fn live_send_otp_rejects_invalid_token() {
+    if skip_unless_live() {
+        return;
+    }
+
+    let client = live_client();
+    let req = csc_client::SendOtpRequest {
+        credential_id: "nonexistent".to_string(),
+        client_data: None,
+    };
+
+    let err = client
+        .send_otp("Bearer invalid-token-for-testing", &req)
+        .await
+        .unwrap_err();
+
+    match err {
+        csc_client::CscError::Api { status, .. } => {
+            assert!(
+                status == 401 || status == 500,
+                "expected 401 or 500, got {status}"
+            );
+        }
+        other => panic!("expected Api error, got: {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn live_send_otp_with_token() {
+    if skip_unless_live() {
+        return;
+    }
+    let token = match access_token() {
+        Some(t) => t,
+        None => {
+            eprintln!("Skipping: set CSC_ACCESS_TOKEN for authenticated tests");
+            return;
+        }
+    };
+
+    let client = live_client();
+    let bearer = format!("Bearer {token}");
+
+    let creds = client
+        .list_credentials(&bearer, None)
+        .await
+        .expect("list_credentials failed");
+
+    if creds.is_empty() {
+        eprintln!("No credentials available for sendOTP test");
+        return;
+    }
+
+    let req = csc_client::SendOtpRequest {
+        credential_id: creds[0].clone(),
+        client_data: None,
+    };
+
+    let result = client.send_otp(&bearer, &req).await;
+    // May succeed (OTP sent) or fail (OTP not supported for this credential)
+    match result {
+        Ok(()) => eprintln!("sendOTP succeeded"),
+        Err(csc_client::CscError::Api { status, error, .. }) => {
+            eprintln!("sendOTP returned error {status}: {error} (may not be supported)");
+        }
+        Err(other) => panic!("unexpected error: {other:?}"),
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// sign_hash_full (async response fields)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+#[tokio::test]
+async fn live_sign_hash_full_rejects_invalid_token() {
+    if skip_unless_live() {
+        return;
+    }
+
+    let client = live_client();
+    let req = csc_client::SignHashRequest {
+        credential_id: "nonexistent".to_string(),
+        sad: None,
+        hash: vec!["dGVzdA==".to_string()],
+        hash_algo: csc_client::HASH_ALGO_SHA256.to_string(),
+        sign_algo: csc_client::SIGN_ALGO_ECDSA_SHA256.to_string(),
+        sign_algo_params: None,
+        operation_mode: None,
+        validity_period: None,
+        response_uri: None,
+        client_data: None,
+    };
+
+    let err = client
+        .sign_hash_full("Bearer invalid-token-for-testing", &req)
+        .await
+        .unwrap_err();
+
+    match err {
+        csc_client::CscError::Api { status, .. } => {
+            assert!(
+                status == 401 || status == 500,
+                "expected 401 or 500, got {status}"
+            );
+        }
+        other => panic!("expected Api error, got: {other:?}"),
+    }
 }

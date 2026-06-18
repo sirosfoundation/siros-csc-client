@@ -62,6 +62,10 @@ async fn sign_hash_request_credential_id_field_name() {
         hash_algo: HASH_ALGO_SHA256.to_string(),
         sign_algo: SIGN_ALGO_ECDSA_SHA256.to_string(),
         sign_algo_params: None,
+        operation_mode: None,
+        validity_period: None,
+        response_uri: None,
+        client_data: None,
     };
 
     let result = client.sign_hash("Bearer tok", &req).await;
@@ -96,6 +100,10 @@ async fn sign_hash_request_sad_field_name() {
         hash_algo: HASH_ALGO_SHA256.to_string(),
         sign_algo: SIGN_ALGO_ECDSA_SHA256.to_string(),
         sign_algo_params: None,
+        operation_mode: None,
+        validity_period: None,
+        response_uri: None,
+        client_data: None,
     };
 
     let result = client.sign_hash("Bearer tok", &req).await;
@@ -126,6 +134,10 @@ async fn sign_hash_request_hashes_field_name() {
         hash_algo: HASH_ALGO_SHA256.to_string(),
         sign_algo: SIGN_ALGO_ECDSA_SHA256.to_string(),
         sign_algo_params: None,
+        operation_mode: None,
+        validity_period: None,
+        response_uri: None,
+        client_data: None,
     };
 
     let result = client.sign_hash("Bearer tok", &req).await;
@@ -156,6 +168,10 @@ async fn sign_hash_request_hash_algorithm_oid_field_name() {
         hash_algo: HASH_ALGO_SHA256.to_string(),
         sign_algo: SIGN_ALGO_ECDSA_SHA256.to_string(),
         sign_algo_params: None,
+        operation_mode: None,
+        validity_period: None,
+        response_uri: None,
+        client_data: None,
     };
 
     let result = client.sign_hash("Bearer tok", &req).await;
@@ -420,6 +436,10 @@ async fn server_error_with_csc_body() {
         hash_algo: HASH_ALGO_SHA256.to_string(),
         sign_algo: SIGN_ALGO_ECDSA_SHA256.to_string(),
         sign_algo_params: None,
+        operation_mode: None,
+        validity_period: None,
+        response_uri: None,
+        client_data: None,
     };
 
     let err = client.sign_hash("Bearer tok", &req).await.unwrap_err();
@@ -750,6 +770,10 @@ async fn sign_hash_single_document() {
         hash_algo: HASH_ALGO_SHA256.to_string(),
         sign_algo: SIGN_ALGO_ECDSA_SHA256.to_string(),
         sign_algo_params: None,
+        operation_mode: None,
+        validity_period: None,
+        response_uri: None,
+        client_data: None,
     };
 
     let sigs = client.sign_hash("Bearer tok", &req).await.unwrap();
@@ -791,6 +815,10 @@ async fn sign_hash_implicit_auth_no_sad() {
         hash_algo: HASH_ALGO_SHA256.to_string(),
         sign_algo: SIGN_ALGO_ECDSA_SHA256.to_string(),
         sign_algo_params: None,
+        operation_mode: None,
+        validity_period: None,
+        response_uri: None,
+        client_data: None,
     };
 
     let result = client.sign_hash("Bearer tok", &req).await;
@@ -824,6 +852,10 @@ async fn sign_hash_response_with_response_id() {
         hash_algo: HASH_ALGO_SHA256.to_string(),
         sign_algo: SIGN_ALGO_ECDSA_SHA256.to_string(),
         sign_algo_params: None,
+        operation_mode: None,
+        validity_period: None,
+        response_uri: None,
+        client_data: None,
     };
 
     // Should still succeed even with extra responseID field
@@ -979,6 +1011,10 @@ async fn sign_hash_empty_signatures() {
         hash_algo: HASH_ALGO_SHA256.to_string(),
         sign_algo: SIGN_ALGO_ECDSA_SHA256.to_string(),
         sign_algo_params: None,
+        operation_mode: None,
+        validity_period: None,
+        response_uri: None,
+        client_data: None,
     };
 
     let sigs = client.sign_hash("Bearer tok", &req).await.unwrap();
@@ -1013,6 +1049,10 @@ async fn sign_hash_authorization_required_error() {
         hash_algo: HASH_ALGO_SHA256.to_string(),
         sign_algo: SIGN_ALGO_ECDSA_SHA256.to_string(),
         sign_algo_params: None,
+        operation_mode: None,
+        validity_period: None,
+        response_uri: None,
+        client_data: None,
     };
 
     let err = client
@@ -1081,4 +1121,366 @@ async fn credential_info_ec_p256_cleverbase_format() {
         .unwrap()
         .contains("PNOEU-XXYY123456"));
     assert_eq!(info.auth.unwrap().mode, "oauth2code");
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// credentials/authorize
+// ═══════════════════════════════════════════════════════════════════════════════
+
+#[tokio::test]
+async fn authorize_credential_sends_correct_field_names() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .and(path("/credentials/authorize"))
+        .and(body_partial_json(serde_json::json!({
+            "credentialID": "cred-001",
+            "numSignatures": 2
+        })))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "SAD": "sad-token-abc123",
+            "expiresIn": 300
+        })))
+        .mount(&server)
+        .await;
+
+    let client = test_client(&server);
+    let req = csc_client::CredentialAuthorizeRequest {
+        credential_id: "cred-001".to_string(),
+        num_signatures: 2,
+        hashes: None,
+        hash_algorithm_oid: None,
+        pin: None,
+        otp: None,
+        client_data: None,
+    };
+
+    let resp = client
+        .authorize_credential("Bearer tok", &req)
+        .await
+        .unwrap();
+    assert_eq!(resp.sad, "sad-token-abc123");
+    assert_eq!(resp.expires_in, Some(300));
+}
+
+#[tokio::test]
+async fn authorize_credential_with_pin_and_hashes() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .and(path("/credentials/authorize"))
+        .and(body_partial_json(serde_json::json!({
+            "credentialID": "cred-001",
+            "numSignatures": 1,
+            "PIN": "1234",
+            "hashes": ["aGFzaDE="],
+            "hashAlgorithmOID": "2.16.840.1.101.3.4.2.1"
+        })))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "SAD": "sad-with-pin"
+        })))
+        .mount(&server)
+        .await;
+
+    let client = test_client(&server);
+    let req = csc_client::CredentialAuthorizeRequest {
+        credential_id: "cred-001".to_string(),
+        num_signatures: 1,
+        hashes: Some(vec!["aGFzaDE=".to_string()]),
+        hash_algorithm_oid: Some("2.16.840.1.101.3.4.2.1".to_string()),
+        pin: Some("1234".to_string()),
+        otp: None,
+        client_data: None,
+    };
+
+    let resp = client
+        .authorize_credential("Bearer tok", &req)
+        .await
+        .unwrap();
+    assert_eq!(resp.sad, "sad-with-pin");
+}
+
+#[tokio::test]
+async fn authorize_credential_with_otp() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .and(path("/credentials/authorize"))
+        .and(body_partial_json(serde_json::json!({
+            "credentialID": "cred-001",
+            "numSignatures": 1,
+            "OTP": "987654"
+        })))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "SAD": "sad-with-otp",
+            "expiresIn": 60
+        })))
+        .mount(&server)
+        .await;
+
+    let client = test_client(&server);
+    let req = csc_client::CredentialAuthorizeRequest {
+        credential_id: "cred-001".to_string(),
+        num_signatures: 1,
+        hashes: None,
+        hash_algorithm_oid: None,
+        pin: None,
+        otp: Some("987654".to_string()),
+        client_data: None,
+    };
+
+    let resp = client
+        .authorize_credential("Bearer tok", &req)
+        .await
+        .unwrap();
+    assert_eq!(resp.sad, "sad-with-otp");
+    assert_eq!(resp.expires_in, Some(60));
+}
+
+#[tokio::test]
+async fn authorize_credential_error_response() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .and(path("/credentials/authorize"))
+        .respond_with(ResponseTemplate::new(403).set_body_json(serde_json::json!({
+            "error": "invalid_otp",
+            "error_description": "The provided OTP is invalid"
+        })))
+        .mount(&server)
+        .await;
+
+    let client = test_client(&server);
+    let req = csc_client::CredentialAuthorizeRequest {
+        credential_id: "cred-001".to_string(),
+        num_signatures: 1,
+        hashes: None,
+        hash_algorithm_oid: None,
+        pin: None,
+        otp: Some("wrong".to_string()),
+        client_data: None,
+    };
+
+    let err = client
+        .authorize_credential("Bearer tok", &req)
+        .await
+        .unwrap_err();
+    match err {
+        CscError::Api {
+            status,
+            error,
+            error_description,
+        } => {
+            assert_eq!(status, 403);
+            assert_eq!(error, "invalid_otp");
+            assert!(error_description.contains("OTP"));
+        }
+        _ => panic!("expected Api error"),
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// credentials/sendOTP
+// ═══════════════════════════════════════════════════════════════════════════════
+
+#[tokio::test]
+async fn send_otp_sends_correct_field_names() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .and(path("/credentials/sendOTP"))
+        .and(body_partial_json(serde_json::json!({
+            "credentialID": "cred-001"
+        })))
+        .respond_with(ResponseTemplate::new(204))
+        .mount(&server)
+        .await;
+
+    let client = test_client(&server);
+    let req = csc_client::SendOtpRequest {
+        credential_id: "cred-001".to_string(),
+        client_data: None,
+    };
+
+    client.send_otp("Bearer tok", &req).await.unwrap();
+}
+
+#[tokio::test]
+async fn send_otp_with_client_data() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .and(path("/credentials/sendOTP"))
+        .and(body_partial_json(serde_json::json!({
+            "credentialID": "cred-002",
+            "clientData": "my-session-ref"
+        })))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({})))
+        .mount(&server)
+        .await;
+
+    let client = test_client(&server);
+    let req = csc_client::SendOtpRequest {
+        credential_id: "cred-002".to_string(),
+        client_data: Some("my-session-ref".to_string()),
+    };
+
+    client.send_otp("Bearer tok", &req).await.unwrap();
+}
+
+#[tokio::test]
+async fn send_otp_error_response() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .and(path("/credentials/sendOTP"))
+        .respond_with(ResponseTemplate::new(400).set_body_json(serde_json::json!({
+            "error": "invalid_request",
+            "error_description": "OTP delivery not supported for this credential"
+        })))
+        .mount(&server)
+        .await;
+
+    let client = test_client(&server);
+    let req = csc_client::SendOtpRequest {
+        credential_id: "unsupported-cred".to_string(),
+        client_data: None,
+    };
+
+    let err = client.send_otp("Bearer tok", &req).await.unwrap_err();
+    match err {
+        CscError::Api { status, error, .. } => {
+            assert_eq!(status, 400);
+            assert_eq!(error, "invalid_request");
+        }
+        _ => panic!("expected Api error"),
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Paginated credential listing
+// ═══════════════════════════════════════════════════════════════════════════════
+
+#[tokio::test]
+async fn list_credentials_paginated_sends_page_token() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .and(path("/credentials/list"))
+        .and(body_partial_json(serde_json::json!({
+            "maxResults": 2,
+            "pageToken": "page2-token"
+        })))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "credentialIDs": ["cred-003", "cred-004"],
+            "nextPageToken": "page3-token"
+        })))
+        .mount(&server)
+        .await;
+
+    let client = test_client(&server);
+    let resp = client
+        .list_credentials_paginated("Bearer tok", None, Some(2), Some("page2-token"))
+        .await
+        .unwrap();
+
+    assert_eq!(resp.credential_ids, vec!["cred-003", "cred-004"]);
+    assert_eq!(resp.next_page_token, Some("page3-token".to_string()));
+}
+
+#[tokio::test]
+async fn list_credentials_paginated_last_page_no_token() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .and(path("/credentials/list"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "credentialIDs": ["cred-005"]
+        })))
+        .mount(&server)
+        .await;
+
+    let client = test_client(&server);
+    let resp = client
+        .list_credentials_paginated("Bearer tok", None, Some(10), None)
+        .await
+        .unwrap();
+
+    assert_eq!(resp.credential_ids, vec!["cred-005"]);
+    assert_eq!(resp.next_page_token, None);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// sign_hash_full (async response fields)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+#[tokio::test]
+async fn sign_hash_full_returns_response_id() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .and(path("/signatures/signHash"))
+        .and(body_partial_json(serde_json::json!({
+            "credentialID": "cred-001",
+            "SAD": "my-sad",
+            "operationMode": "A",
+            "validityPeriod": 60000,
+            "responseURI": "https://example.com/callback",
+            "clientData": "session-xyz"
+        })))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "signatures": [],
+            "responseID": "async-op-12345"
+        })))
+        .mount(&server)
+        .await;
+
+    let client = test_client(&server);
+    let req = SignHashRequest {
+        credential_id: "cred-001".to_string(),
+        sad: Some("my-sad".to_string()),
+        hash: vec!["dGVzdA==".to_string()],
+        hash_algo: HASH_ALGO_SHA256.to_string(),
+        sign_algo: SIGN_ALGO_ECDSA_SHA256.to_string(),
+        sign_algo_params: None,
+        operation_mode: Some("A".to_string()),
+        validity_period: Some(60000),
+        response_uri: Some("https://example.com/callback".to_string()),
+        client_data: Some("session-xyz".to_string()),
+    };
+
+    let resp = client.sign_hash_full("Bearer tok", &req).await.unwrap();
+    assert!(resp.signatures.is_empty());
+    assert_eq!(resp.response_id, Some("async-op-12345".to_string()));
+}
+
+#[tokio::test]
+async fn sign_hash_full_sync_mode_returns_signatures() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .and(path("/signatures/signHash"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "signatures": ["c2lnMQ==", "c2lnMg=="]
+        })))
+        .mount(&server)
+        .await;
+
+    let client = test_client(&server);
+    let req = SignHashRequest {
+        credential_id: "cred-001".to_string(),
+        sad: None,
+        hash: vec!["aDE=".to_string(), "aDI=".to_string()],
+        hash_algo: HASH_ALGO_SHA256.to_string(),
+        sign_algo: SIGN_ALGO_ECDSA_SHA256.to_string(),
+        sign_algo_params: None,
+        operation_mode: None,
+        validity_period: None,
+        response_uri: None,
+        client_data: None,
+    };
+
+    let resp = client.sign_hash_full("Bearer tok", &req).await.unwrap();
+    assert_eq!(resp.signatures, vec!["c2lnMQ==", "c2lnMg=="]);
+    assert_eq!(resp.response_id, None);
 }

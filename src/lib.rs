@@ -14,17 +14,22 @@
 //! The only cryptographic operation it performs is DPoP proof generation
 //! via an injected [`DPopSigner`] trait, which can be backed by any WSCD.
 //!
-//! # Minimum viable scope
+//! # API Coverage
 //!
+//! - `info` — query QTSP capabilities (unauthenticated)
 //! - `credentials/list` — enumerate available signing credentials
 //! - `credentials/info` — get metadata for a specific credential
-//! - `signatures/signHash` — request hash signing
+//! - `credentials/authorize` — obtain SAD for explicit authorization
+//! - `credentials/sendOTP` — trigger OTP delivery
+//! - `signatures/signHash` — request hash signing (sync and async modes)
 
 pub mod client;
 pub mod error;
+#[cfg(feature = "ffi")]
 pub mod ffi;
 pub mod types;
 
+#[cfg(feature = "ffi")]
 uniffi::setup_scaffolding!();
 
 pub use client::CscClient;

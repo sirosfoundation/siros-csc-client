@@ -127,6 +127,10 @@ async fn sign_hash_success() {
         hash_algo: HASH_ALGO_SHA256.to_string(),
         sign_algo: SIGN_ALGO_ECDSA_SHA256.to_string(),
         sign_algo_params: None,
+        operation_mode: None,
+        validity_period: None,
+        response_uri: None,
+        client_data: None,
     };
 
     let sigs = client.sign_hash("Bearer test-token", &req).await.unwrap();

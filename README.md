@@ -1,17 +1,20 @@
-# csc-client
+# siros-csc-client
 
-[![CI](https://github.com/sirosfoundation/csc-client/actions/workflows/ci.yml/badge.svg)](https://github.com/sirosfoundation/csc-client/actions/workflows/ci.yml)
+[![CI](https://github.com/sirosfoundation/siros-csc-client/actions/workflows/ci.yml/badge.svg)](https://github.com/sirosfoundation/siros-csc-client/actions/workflows/ci.yml)
 [![License: BSD-2-Clause](https://img.shields.io/badge/License-BSD--2--Clause-blue.svg)](LICENSE)
 
 A typed Rust client for the [Cloud Signature Consortium (CSC) API v2.2](https://cloudsignatureconsortium.org/resources/download-api-specifications/) (ETSI TS 119 432), enabling wallet applications to request qualified electronic signatures from remote QTSPs.
 
 ## Features
 
-- **`credentials/list`** — enumerate available signing credentials
+- **`info`** — query QTSP service metadata (unauthenticated)
+- **`credentials/list`** — enumerate available signing credentials (with pagination)
 - **`credentials/info`** — get metadata for a specific credential (key, cert, auth mode)
-- **`signatures/signHash`** — request hash signing with a remote QSCD
+- **`credentials/authorize`** — obtain SAD for explicit authorization (PIN/OTP)
+- **`credentials/sendOTP`** — trigger OTP delivery
+- **`signatures/signHash`** — request hash signing (sync and async modes)
 - **DPoP support** — pluggable `DPopSigner` trait for RFC 9449 proof generation
-- **UniFFI bindings** — Swift and Kotlin bindings via [UniFFI](https://mozilla.github.io/uniffi-rs/)
+- **UniFFI bindings** — Swift and Kotlin bindings via [UniFFI](https://mozilla.github.io/uniffi-rs/) (optional `ffi` feature)
 
 ## Architecture
 
@@ -44,6 +47,10 @@ let req = SignHashRequest {
     hash_algo: HASH_ALGO_SHA256.to_string(),
     sign_algo: SIGN_ALGO_ECDSA_SHA256.to_string(),
     sign_algo_params: None,
+    operation_mode: None,
+    validity_period: None,
+    response_uri: None,
+    client_data: None,
 };
 let signatures = client.sign_hash("Bearer eyJ...", &req).await?;
 ```
