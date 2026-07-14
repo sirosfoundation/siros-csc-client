@@ -1,6 +1,7 @@
 # siros-csc-client
 
 [![CI](https://github.com/sirosfoundation/siros-csc-client/actions/workflows/ci.yml/badge.svg)](https://github.com/sirosfoundation/siros-csc-client/actions/workflows/ci.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/sirosfoundation/siros-csc-client/badge)](https://scorecard.dev/viewer/?uri=github.com/sirosfoundation/siros-csc-client)
 [![License: BSD-2-Clause](https://img.shields.io/badge/License-BSD--2--Clause-blue.svg)](LICENSE)
 
 A typed Rust client for the [Cloud Signature Consortium (CSC) API](https://cloudsignatureconsortium.org/resources/download-api-specifications/) (ETSI TS 119 432), supporting both **v1** and **v2.2**, enabling wallet applications to request qualified electronic signatures from remote QTSPs.
