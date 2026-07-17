@@ -68,7 +68,7 @@ aar: android bindings-kotlin
 	cp $(BUILD_DIR)/aarch64-linux-android/release/$(LIB_NAME).so $(AAR_DIR)/jni/arm64-v8a/
 	cp $(BUILD_DIR)/armv7-linux-androideabi/release/$(LIB_NAME).so $(AAR_DIR)/jni/armeabi-v7a/
 	cp $(BUILD_DIR)/x86_64-linux-android/release/$(LIB_NAME).so $(AAR_DIR)/jni/x86_64/
-	@echo '<?xml version="1.0" encoding="utf-8"?><manifest xmlns:android="http://schemas.android.com/apk/res/android" package="org.sirosfoundation.csc"/>' \
+	@echo '<?xml version="1.0" encoding="utf-8"?><manifest xmlns:android="http://schemas.android.com/apk/res/android" package="org.siros.csc"/>' \
 		> $(AAR_DIR)/AndroidManifest.xml
 	cd $(AAR_DIR) && zip -r ../$(CRATE_NAME)-$(VERSION).aar .
 
