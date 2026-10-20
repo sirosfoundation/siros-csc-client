@@ -15,7 +15,7 @@ jobs:
     name: Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7.0.1
       - uses: ./.github/actions/rust-toolchain
       - uses: Swatinem/rust-cache@v2
       - run: cargo check --locked --no-default-features
@@ -25,7 +25,7 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7.0.1
       - uses: ./.github/actions/rust-toolchain
       - uses: Swatinem/rust-cache@v2
       - run: cargo test --locked
@@ -35,7 +35,7 @@ jobs:
     name: Format
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7.0.1
       - uses: ./.github/actions/rust-toolchain
       - run: cargo fmt --all -- --check
 
@@ -43,7 +43,7 @@ jobs:
     name: Clippy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7.0.1
       - uses: ./.github/actions/rust-toolchain
       - uses: Swatinem/rust-cache@v2
       - run: cargo clippy --locked --all-features -- -D warnings
@@ -52,7 +52,7 @@ jobs:
     name: MSRV (1.86)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7.0.1
       # Both are needed. `rustup toolchain install` *installs* 1.86.0;
       # RUSTUP_TOOLCHAIN (exported below) is what makes cargo use it, because
       # rust-toolchain.toml pins the exact CI toolchain and would otherwise
