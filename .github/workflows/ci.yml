@@ -54,13 +54,15 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       # Both are needed. `rustup toolchain install` *installs* 1.86.0;
-      # RUSTUP_TOOLCHAIN on the cargo step is what makes cargo use it, because
+      # RUSTUP_TOOLCHAIN (exported below) is what makes cargo use it, because
       # rust-toolchain.toml pins the exact CI toolchain and would otherwise
       # override it, so this job would pass while checking nothing.
       - name: Install the MSRV toolchain
-        run: rustup toolchain install 1.86.0 --profile minimal
+        run: |
+          rustup toolchain install 1.86.0 --profile minimal
+          # Exported for the whole job so rust-cache (which runs `rustc -vV`)
+          # also sees 1.86.0 and does not install the pinned toolchain too.
+          echo "RUSTUP_TOOLCHAIN=1.86.0" >> "$GITHUB_ENV"
       - uses: Swatinem/rust-cache@v2
       - name: Crate builds on the MSRV
-        env:
-          RUSTUP_TOOLCHAIN: "1.86.0"
         run: cargo check --locked --no-default-features
