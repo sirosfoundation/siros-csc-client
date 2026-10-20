@@ -16,29 +16,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/rust-toolchain
       - uses: Swatinem/rust-cache@v2
-      - run: cargo check --no-default-features
-      - run: cargo check --features ffi
+      - run: cargo check --locked --no-default-features
+      - run: cargo check --locked --features ffi
 
   test:
     name: Test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/rust-toolchain
       - uses: Swatinem/rust-cache@v2
-      - run: cargo test
-      - run: cargo test --features test-utils
+      - run: cargo test --locked
+      - run: cargo test --locked --features test-utils
 
   fmt:
     name: Format
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt
+      - uses: ./.github/actions/rust-toolchain
       - run: cargo fmt --all -- --check
 
   clippy:
@@ -46,19 +44,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy
+      - uses: ./.github/actions/rust-toolchain
       - uses: Swatinem/rust-cache@v2
-      - run: cargo clippy --all-features -- -D warnings
+      - run: cargo clippy --locked --all-features -- -D warnings
 
   msrv:
     name: MSRV (1.86)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: "1.86.0"
+      # Both are needed. `rustup toolchain install` *installs* 1.86.0;
+      # RUSTUP_TOOLCHAIN (exported below) is what makes cargo use it, because
+      # rust-toolchain.toml pins the exact CI toolchain and would otherwise
+      # override it, so this job would pass while checking nothing.
+      - name: Install the MSRV toolchain
+        run: |
+          rustup toolchain install 1.86.0 --profile minimal
+          # Exported for the whole job so rust-cache (which runs `rustc -vV`)
+          # also sees 1.86.0 and does not install the pinned toolchain too.
+          echo "RUSTUP_TOOLCHAIN=1.86.0" >> "$GITHUB_ENV"
       - uses: Swatinem/rust-cache@v2
-      - run: cargo check --locked --no-default-features
+      - name: Crate builds on the MSRV
+        run: cargo check --locked --no-default-features
